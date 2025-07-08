@@ -80,7 +80,7 @@ const calculatePublicPensionIncome = (pensionRevenue, age, otherIncomeForPension
 };
 
 
-// --- 各種控除計算 (配偶者控除を修正) ---
+// --- 各種控除計算 (変更なし) ---
 const getBasicDeduction = (totalIncome) => {
     if (totalIncome <= 24000000) return 480000;
     if (totalIncome <= 24500000) return 320000;
@@ -182,14 +182,6 @@ const calculateDisabilityDeduction = (values) => {
     return { incomeTaxDeduction, residentTaxDeduction };
 };
 
-/**
- * 配偶者控除・配偶者特別控除の計算 (ご指示に基づきロジックを全面改修)
- * @param {number} taxpayerIncome 納税者の合計所得金額
- * @param {number} spouseIncome 配偶者の合計所得金額
- * @param {string} spouseStatus 配偶者の有無
- * @param {string} spouseAge 配偶者の年齢
- * @returns {object} 所得税と住民税の控除額
- */
 const calculateSpouseDeductions = (taxpayerIncome, spouseIncome, spouseStatus, spouseAge) => {
     const result = { spouseDeduction: 0, specialSpouseDeduction: 0, spouseDeductionForResidentTax: 0, specialSpouseDeductionForResidentTax: 0 };
     const taxpayerIncomeNum = Number(taxpayerIncome) || 0;
@@ -199,7 +191,6 @@ const calculateSpouseDeductions = (taxpayerIncome, spouseIncome, spouseStatus, s
         return result;
     }
 
-    // ④ 配偶者控除の判定
     if (spouseIncomeNum <= 480000) {
         const isOver70 = spouseAge === 'over70';
         if (taxpayerIncomeNum <= 9000000) {
@@ -213,9 +204,7 @@ const calculateSpouseDeductions = (taxpayerIncome, spouseIncome, spouseStatus, s
             result.spouseDeductionForResidentTax = isOver70 ? 130000 : 110000;
         }
     } 
-    // ⑤ 配偶者特別控除の判定
     else if (spouseIncomeNum > 480000 && spouseIncomeNum <= 1330000) {
-        // 納税者本人の合計所得金額: 900万円以下
         if (taxpayerIncomeNum <= 9000000) {
             if (spouseIncomeNum <= 950000) { result.specialSpouseDeduction = 380000; result.specialSpouseDeductionForResidentTax = 330000; }
             else if (spouseIncomeNum <= 1000000) { result.specialSpouseDeduction = 360000; result.specialSpouseDeductionForResidentTax = 330000; }
@@ -227,7 +216,6 @@ const calculateSpouseDeductions = (taxpayerIncome, spouseIncome, spouseStatus, s
             else if (spouseIncomeNum <= 1300000) { result.specialSpouseDeduction = 60000; result.specialSpouseDeductionForResidentTax = 60000; }
             else if (spouseIncomeNum <= 1330000) { result.specialSpouseDeduction = 30000; result.specialSpouseDeductionForResidentTax = 30000; }
         }
-        // 納税者本人の合計所得金額: 900万円超 950万円以下
         else if (taxpayerIncomeNum <= 9500000) {
             if (spouseIncomeNum <= 950000) { result.specialSpouseDeduction = 260000; result.specialSpouseDeductionForResidentTax = 220000; }
             else if (spouseIncomeNum <= 1000000) { result.specialSpouseDeduction = 240000; result.specialSpouseDeductionForResidentTax = 220000; }
@@ -239,7 +227,6 @@ const calculateSpouseDeductions = (taxpayerIncome, spouseIncome, spouseStatus, s
             else if (spouseIncomeNum <= 1300000) { result.specialSpouseDeduction = 40000; result.specialSpouseDeductionForResidentTax = 40000; }
             else if (spouseIncomeNum <= 1330000) { result.specialSpouseDeduction = 20000; result.specialSpouseDeductionForResidentTax = 20000; }
         }
-        // 納税者本人の合計所得金額: 950万円超 1,000万円以下
         else if (taxpayerIncomeNum <= 10000000) {
             if (spouseIncomeNum <= 950000) { result.specialSpouseDeduction = 130000; result.specialSpouseDeductionForResidentTax = 110000; }
             else if (spouseIncomeNum <= 1000000) { result.specialSpouseDeduction = 120000; result.specialSpouseDeductionForResidentTax = 110000; }
@@ -329,8 +316,8 @@ const calculateTax = (values, totalIncome, deductions, incomes) => {
     };
 };
 
-// --- 新UIコンポーネント (変更なし) ---
-// New UI Components (Unchanged)
+// --- 新UIコンポーネント (InputFieldを修正) ---
+// New UI Components (InputField modified)
 
 const formatNumber = (num) => Number(num || 0).toLocaleString();
 const parseNumber = (str) => String(str).replace(/,/g, '');
@@ -359,6 +346,7 @@ const InputField = ({ label, name, value, onChange, disabled = false, subtext, u
     <div className="relative">
       <input
         id={name} name={name} type="text"
+        inputMode="decimal"
         value={formatNumber(value)} onChange={onChange} disabled={disabled}
         className="w-full px-3 py-2 bg-gray-100/80 border border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-[#007AFF] focus:bg-white text-[#1d1d1f] transition-all duration-200"
       />
