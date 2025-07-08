@@ -10,12 +10,13 @@ import React, { useState, useEffect } from 'react';
 const calculateSalaryIncome = (revenue) => {
   if (revenue <= 0) return 0;
   if (revenue <= 1625000) return Math.max(0, revenue - 550000);
-  if (revenue <= 1800000) return Math.round(revenue / 4) * 2.4 - 100000;
-  if (revenue <= 3600000) return Math.round(revenue / 4) * 2.8 - 180000;
-  if (revenue <= 6600000) return Math.round(revenue / 4) * 3.2 - 440000;
+  if (revenue <= 1800000) return Math.floor(revenue / 4) * 2.4 * 10000 / 10000 - 100000;
+  if (revenue <= 3600000) return Math.floor(revenue / 4) * 2.8 * 10000 / 10000 - 180000;
+  if (revenue <= 6600000) return Math.floor(revenue / 4) * 3.2 * 10000 / 10000 - 440000;
   if (revenue <= 8500000) return revenue * 0.9 - 1100000;
   return revenue - 1950000;
 };
+
 
 /**
  * 公的年金等の収入から雑所得を計算する
@@ -30,13 +31,14 @@ const calculatePublicPensionIncome = (pensionRevenue, age, otherIncomeForPension
     let deduction = 0;
     if (otherIncomeForPensionCalc <= 10000000) {
         if (isOver65) {
-            if (pensionRevenue < 3300000) deduction = 1100000;
+            if (pensionRevenue < 1300000) deduction = 1100000;
             else if (pensionRevenue < 4100000) deduction = pensionRevenue * 0.25 + 275000;
             else if (pensionRevenue < 7700000) deduction = pensionRevenue * 0.15 + 685000;
             else if (pensionRevenue < 10000000) deduction = pensionRevenue * 0.05 + 1455000;
             else deduction = 1955000;
         } else {
-            if (pensionRevenue < 1300000) deduction = 600000;
+            if (pensionRevenue < 650000) deduction = 600000;
+            else if (pensionRevenue < 1300000) deduction = 600000;
             else if (pensionRevenue < 4100000) deduction = pensionRevenue * 0.25 + 275000;
             else if (pensionRevenue < 7700000) deduction = pensionRevenue * 0.15 + 685000;
             else if (pensionRevenue < 10000000) deduction = pensionRevenue * 0.05 + 1455000;
@@ -122,56 +124,194 @@ const calculateEarthquakeInsuranceDeduction = (values) => {
     const totalResidentTaxDeduction = Math.min(25000, ded_RT_earthquake + ded_RT_oldLongTerm);
     return { incomeTaxDeduction: Math.round(totalIncomeTaxDeduction), residentTaxDeduction: Math.round(totalResidentTaxDeduction) };
 };
-// TODO: Implement calculation logic for spouse, dependents etc.
-const calculateSpouseAndDependentsDeduction = (values) => {
-    // This is a placeholder. Real logic is complex.
-    return { spouseDeduction: 0, specialSpouseDeduction: 0, dependentsDeduction: 0 };
+
+const calculateDonationDeduction = (donationAmount, grossIncome) => {
+    const amount = Number(donationAmount) || 0;
+    if (amount <= 2000) return 0;
+    const incomeLimit = grossIncome * 0.4;
+    const deductionBase = Math.min(amount, incomeLimit);
+    const deduction = Math.max(0, deductionBase - 2000);
+    return Math.round(deduction);
 };
+
+const calculateWidowDeduction = (widowStatus) => {
+    switch (widowStatus) {
+        case 'single_parent':
+            return { incomeTaxDeduction: 350000, residentTaxDeduction: 300000 };
+        case 'widow':
+            return { incomeTaxDeduction: 270000, residentTaxDeduction: 260000 };
+        default:
+            return { incomeTaxDeduction: 0, residentTaxDeduction: 0 };
+    }
+};
+
+const calculateWorkingStudentDeduction = (workingStudentStatus) => {
+    if (workingStudentStatus === 'yes') {
+        return { incomeTaxDeduction: 270000, residentTaxDeduction: 260000 };
+    }
+    return { incomeTaxDeduction: 0, residentTaxDeduction: 0 };
+};
+
+const calculateDisabilityDeduction = (values) => {
+    const generalCount = Number(values.generalDisabilityCount) || 0;
+    const specialCount = Number(values.specialDisabilityCount) || 0;
+    const severeCount = Number(values.severeDisabilityCount) || 0;
+    const incomeTaxDeduction = generalCount * 270000 + specialCount * 400000 + severeCount * 750000;
+    const residentTaxDeduction = generalCount * 260000 + specialCount * 300000 + severeCount * 530000;
+    return { incomeTaxDeduction, residentTaxDeduction };
+};
+
+const calculateSpouseDeductions = (taxpayerIncome, spouseIncome, spouseStatus, spouseAge) => {
+    const result = {
+        spouseDeduction: 0, specialSpouseDeduction: 0,
+        spouseDeductionForResidentTax: 0, specialSpouseDeductionForResidentTax: 0,
+    };
+    const taxpayerIncomeNum = Number(taxpayerIncome) || 0;
+    const spouseIncomeNum = Number(spouseIncome) || 0;
+    if (spouseStatus === 'none' || taxpayerIncomeNum > 10000000) return result;
+
+    if (spouseIncomeNum <= 480000) {
+        const isOver70 = spouseAge === 'over70';
+        if (taxpayerIncomeNum <= 9000000) {
+            result.spouseDeduction = isOver70 ? 480000 : 380000;
+            result.spouseDeductionForResidentTax = isOver70 ? 380000 : 330000;
+        } else if (taxpayerIncomeNum <= 9500000) {
+            result.spouseDeduction = isOver70 ? 320000 : 260000;
+            result.spouseDeductionForResidentTax = isOver70 ? 260000 : 220000;
+        } else if (taxpayerIncomeNum <= 10000000) {
+            result.spouseDeduction = isOver70 ? 160000 : 130000;
+            result.spouseDeductionForResidentTax = isOver70 ? 130000 : 110000;
+        }
+    } else if (spouseIncomeNum > 480000 && spouseIncomeNum <= 1330000) {
+        if (taxpayerIncomeNum <= 9000000) {
+            if (spouseIncomeNum <= 950000) { result.specialSpouseDeduction = 380000; result.specialSpouseDeductionForResidentTax = 330000; }
+            else if (spouseIncomeNum <= 1000000) { result.specialSpouseDeduction = 360000; result.specialSpouseDeductionForResidentTax = 330000; }
+            else if (spouseIncomeNum <= 1050000) { result.specialSpouseDeduction = 310000; result.specialSpouseDeductionForResidentTax = 310000; }
+            else if (spouseIncomeNum <= 1100000) { result.specialSpouseDeduction = 260000; result.specialSpouseDeductionForResidentTax = 260000; }
+            else if (spouseIncomeNum <= 1150000) { result.specialSpouseDeduction = 210000; result.specialSpouseDeductionForResidentTax = 210000; }
+            else if (spouseIncomeNum <= 1200000) { result.specialSpouseDeduction = 160000; result.specialSpouseDeductionForResidentTax = 160000; }
+            else if (spouseIncomeNum <= 1250000) { result.specialSpouseDeduction = 110000; result.specialSpouseDeductionForResidentTax = 110000; }
+            else if (spouseIncomeNum <= 1300000) { result.specialSpouseDeduction = 60000; result.specialSpouseDeductionForResidentTax = 60000; }
+            else if (spouseIncomeNum <= 1330000) { result.specialSpouseDeduction = 30000; result.specialSpouseDeductionForResidentTax = 30000; }
+        } else if (taxpayerIncomeNum <= 9500000) {
+            if (spouseIncomeNum <= 950000) { result.specialSpouseDeduction = 260000; result.specialSpouseDeductionForResidentTax = 220000; }
+            else if (spouseIncomeNum <= 1000000) { result.specialSpouseDeduction = 240000; result.specialSpouseDeductionForResidentTax = 220000; }
+            else if (spouseIncomeNum <= 1050000) { result.specialSpouseDeduction = 210000; result.specialSpouseDeductionForResidentTax = 210000; }
+            else if (spouseIncomeNum <= 1100000) { result.specialSpouseDeduction = 180000; result.specialSpouseDeductionForResidentTax = 180000; }
+            else if (spouseIncomeNum <= 1150000) { result.specialSpouseDeduction = 140000; result.specialSpouseDeductionForResidentTax = 140000; }
+            else if (spouseIncomeNum <= 1200000) { result.specialSpouseDeduction = 110000; result.specialSpouseDeductionForResidentTax = 110000; }
+            else if (spouseIncomeNum <= 1250000) { result.specialSpouseDeduction = 80000; result.specialSpouseDeductionForResidentTax = 80000; }
+            else if (spouseIncomeNum <= 1300000) { result.specialSpouseDeduction = 40000; result.specialSpouseDeductionForResidentTax = 40000; }
+            else if (spouseIncomeNum <= 1330000) { result.specialSpouseDeduction = 20000; result.specialSpouseDeductionForResidentTax = 20000; }
+        } else if (taxpayerIncomeNum <= 10000000) {
+            if (spouseIncomeNum <= 950000) { result.specialSpouseDeduction = 130000; result.specialSpouseDeductionForResidentTax = 110000; }
+            else if (spouseIncomeNum <= 1000000) { result.specialSpouseDeduction = 120000; result.specialSpouseDeductionForResidentTax = 110000; }
+            else if (spouseIncomeNum <= 1050000) { result.specialSpouseDeduction = 110000; result.specialSpouseDeductionForResidentTax = 110000; }
+            else if (spouseIncomeNum <= 1100000) { result.specialSpouseDeduction = 90000; result.specialSpouseDeductionForResidentTax = 90000; }
+            else if (spouseIncomeNum <= 1150000) { result.specialSpouseDeduction = 70000; result.specialSpouseDeductionForResidentTax = 70000; }
+            else if (spouseIncomeNum <= 1200000) { result.specialSpouseDeduction = 60000; result.specialSpouseDeductionForResidentTax = 60000; }
+            else if (spouseIncomeNum <= 1250000) { result.specialSpouseDeduction = 40000; result.specialSpouseDeductionForResidentTax = 40000; }
+            else if (spouseIncomeNum <= 1300000) { result.specialSpouseDeduction = 20000; result.specialSpouseDeductionForResidentTax = 20000; }
+            else if (spouseIncomeNum <= 1330000) { result.specialSpouseDeduction = 10000; result.specialSpouseDeductionForResidentTax = 10000; }
+        }
+    }
+    return result;
+};
+
+const calculateDependentsDeduction = (values) => {
+    const generalCount = Number(values.dependents16to18) || 0;
+    const specificCount = Number(values.dependents19to22) || 0;
+    const elderlyCount = Number(values.dependents70plus) || 0;
+    const livingTogetherCount = Number(values.dependents70plusLivingTogether) || 0;
+    const incomeTaxDeduction = generalCount * 380000 + specificCount * 630000 + elderlyCount * 480000 + livingTogetherCount * 580000;
+    const residentTaxDeduction = generalCount * 330000 + specificCount * 450000 + elderlyCount * 380000 + livingTogetherCount * 450000;
+    return { incomeTaxDeduction, residentTaxDeduction };
+};
+
+/**
+ * 事業税の計算
+ * @param {number} businessIncome 事業所得
+ * @param {number} realEstateIncome 不動産所得
+ * @returns {number} 事業税額
+ */
+const calculateBusinessTax = (businessIncome, realEstateIncome) => {
+    const incomeBase = (businessIncome || 0) + (realEstateIncome || 0);
+    if (incomeBase === 0) {
+        return 0;
+    }
+    const businessOwnerDeduction = 2900000;
+    const taxableIncome = Math.max(0, incomeBase - businessOwnerDeduction);
+    const taxRate = 0.05; // 5% flat rate
+    const tax = taxableIncome * taxRate;
+    return Math.floor(tax);
+};
+
 
 // --- 税額計算 ---
 const getIncomeTax = (taxableIncome) => {
-    let tax = 0;
-    if (taxableIncome <= 1950000) tax = taxableIncome * 0.05;
-    else if (taxableIncome <= 3300000) tax = taxableIncome * 0.10 - 97500;
-    else if (taxableIncome <= 6950000) tax = taxableIncome * 0.20 - 427500;
-    else if (taxableIncome <= 9000000) tax = taxableIncome * 0.23 - 636000;
-    else if (taxableIncome <= 18000000) tax = taxableIncome * 0.33 - 1536000;
-    else if (taxableIncome <= 40000000) tax = taxableIncome * 0.40 - 2796000;
-    else tax = taxableIncome * 0.45 - 4796000;
-    const specialTax = tax * 0.021;
-    return Math.floor(tax + specialTax);
+    let baseTax = 0;
+    if (taxableIncome <= 1950000) baseTax = taxableIncome * 0.05;
+    else if (taxableIncome <= 3300000) baseTax = taxableIncome * 0.10 - 97500;
+    else if (taxableIncome <= 6950000) baseTax = taxableIncome * 0.20 - 427500;
+    else if (taxableIncome <= 9000000) baseTax = taxableIncome * 0.23 - 636000;
+    else if (taxableIncome <= 18000000) baseTax = taxableIncome * 0.33 - 1536000;
+    else if (taxableIncome <= 40000000) baseTax = taxableIncome * 0.40 - 2796000;
+    else baseTax = taxableIncome * 0.45 - 4796000;
+    const specialTax = baseTax * 0.021;
+    const totalTax = Math.floor(baseTax + specialTax);
+    return { baseTax: Math.floor(baseTax), specialTax: Math.floor(specialTax), totalTax };
 };
 const getResidentTax = (taxableIncome) => {
-    if (taxableIncome <= 0) return 0;
+    if (taxableIncome <= 0) {
+        const perCapita = 5000;
+        return { incomeProportional: 0, perCapita, totalTax: perCapita };
+    }
     const incomeProportional = taxableIncome * 0.1;
     const perCapita = 5000;
-    return Math.floor(incomeProportional + perCapita);
+    const totalTax = Math.floor(incomeProportional + perCapita);
+    return { incomeProportional: Math.floor(incomeProportional), perCapita, totalTax };
 };
-const calculateTax = (values, totalIncome, deductions) => {
-    const otherDeductions =
-        (Number(values.donationAmount) || 0) > 2000 ? (Number(values.donationAmount) - 2000) : 0; // Simplified donation deduction
-
-    const commonDeductions =
+const calculateTax = (values, totalIncome, deductions, incomes) => {
+    const commonDeductionsBase =
         (Number(values.socialInsuranceDeduction) || 0) +
         (Number(values.smallBizKyosai) || 0) +
         deductions.miscLossDeduction +
         deductions.medicalExpenseDeduction +
-        otherDeductions +
-        deductions.spouseDeduction +
-        deductions.specialSpouseDeduction +
-        deductions.dependentsDeduction;
+        deductions.donationDeduction;
 
-    const basicDeductionForIT = getBasicDeduction(totalIncome);
-    const totalDeductionsForIT = basicDeductionForIT + commonDeductions + deductions.lifeInsuranceDeduction + deductions.earthquakeInsuranceDeduction;
+    const totalDeductionsForIT =
+        getBasicDeduction(totalIncome) + commonDeductionsBase +
+        deductions.lifeInsuranceDeduction + deductions.earthquakeInsuranceDeduction +
+        deductions.spouseDeduction + deductions.specialSpouseDeduction +
+        deductions.widowDeduction + deductions.workingStudentDeduction +
+        deductions.disabilityDeduction + deductions.dependentsDeduction;
     const taxableIncomeForIT = Math.floor(Math.max(0, totalIncome - totalDeductionsForIT) / 1000) * 1000;
-    const incomeTax = getIncomeTax(taxableIncomeForIT);
+    const incomeTaxResult = getIncomeTax(taxableIncomeForIT);
 
-    const basicDeductionForRT = getBasicDeductionForResidentTax(totalIncome);
-    const totalDeductionsForRT = basicDeductionForRT + commonDeductions + deductions.lifeInsuranceDeductionForResidentTax + deductions.earthquakeInsuranceDeductionForResidentTax;
+    const totalDeductionsForRT =
+        getBasicDeductionForResidentTax(totalIncome) + commonDeductionsBase +
+        deductions.lifeInsuranceDeductionForResidentTax + deductions.earthquakeInsuranceDeductionForResidentTax +
+        deductions.spouseDeductionForResidentTax + deductions.specialSpouseDeductionForResidentTax +
+        deductions.widowDeductionForResidentTax + deductions.workingStudentDeductionForResidentTax +
+        deductions.disabilityDeductionForResidentTax + deductions.dependentsDeductionForResidentTax;
     const taxableIncomeForRT = Math.max(0, totalIncome - totalDeductionsForRT);
-    const residentTax = getResidentTax(taxableIncomeForRT);
+    const residentTaxResult = getResidentTax(taxableIncomeForRT);
 
-    return { incomeTax, residentTax, taxableIncome: taxableIncomeForIT, totalDeductions: totalDeductionsForIT };
+    // 事業税の計算 (青色申告特別控除は含めない)
+    const businessTax = calculateBusinessTax(incomes.business, incomes.realEstate);
+
+    return {
+        incomeTax: incomeTaxResult.totalTax,
+        incomeTaxBase: incomeTaxResult.baseTax,
+        specialReconstructionTax: incomeTaxResult.specialTax,
+        residentTax: residentTaxResult.totalTax,
+        residentTaxIncomeProportional: residentTaxResult.incomeProportional,
+        residentTaxPerCapita: residentTaxResult.perCapita,
+        businessTax: businessTax,
+        taxableIncome: taxableIncomeForIT,
+        taxableIncomeForRT: taxableIncomeForRT,
+        totalDeductions: totalDeductionsForIT,
+    };
 };
 
 // --- UIコンポーネント ---
@@ -191,10 +331,10 @@ const ReadOnlyField = ({ label, value, disabled = false }) => (
     <input type="text" value={formatNumber(value)} readOnly disabled={disabled} className="mt-1 block w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-md shadow-sm sm:text-sm disabled:bg-gray-50"/>
   </div>
 );
-const SelectField = ({ label, name, value, onChange, options, subtext }) => (
+const SelectField = ({ label, name, value, onChange, options, subtext, disabled = false }) => (
     <div>
         <label htmlFor={name} className="block text-sm font-medium text-gray-700">{label}</label>
-        <select id={name} name={name} value={value} onChange={onChange} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm">
+        <select id={name} name={name} value={value} onChange={onChange} disabled={disabled} className="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-50">
             {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
         </select>
         {subtext && <p className="mt-1 text-xs text-gray-500">{subtext}</p>}
@@ -234,19 +374,83 @@ const DeductionsPage1 = ({ values, handleChange, onNavigate, deductions }) => (
     </div>
 );
 
-const DeductionsPage2 = ({ values, handleChange, onNavigate, deductions }) => (
+const DeductionsPage2 = ({ values, handleChange, onNavigate, deductions }) => {
+    const dependentOptions = [
+        {value: 0, label: '0人'}, {value: 1, label: '1人'}, {value: 2, label: '2人'},
+        {value: 3, label: '3人'}, {value: 4, label: '4人'}, {value: 5, label: '5人'}
+    ];
+    return (
+        <div className="md:col-span-2 space-y-6">
+            <div className="p-6 bg-white rounded-lg shadow">
+                <h2 className="text-xl font-bold mb-6 border-b pb-3">所得控除の入力 (2/2)</h2>
+                <div className="space-y-6">
+                    <fieldset className="p-4 border rounded-lg space-y-4"><legend className="font-semibold px-2">寄付金控除</legend><InputField label="特定寄付金の支払額" name="donationAmount" value={values.donationAmount} onChange={handleChange} /><ReadOnlyField label="寄付金控除の額" value={deductions.donationDeduction} /></fieldset>
+                    <fieldset className="p-4 border rounded-lg space-y-4"><legend className="font-semibold px-2">寡婦・ひとり親控除</legend><SelectField label="該当の判定" name="widowStatus" value={values.widowStatus} onChange={handleChange} options={[{value: 'none', label: '該当なし'}, {value: 'widow', label: '寡婦'}, {value: 'single_parent', label: 'ひとり親'}]} /><ReadOnlyField label="寡婦・ひとり親控除の額" value={deductions.widowDeduction} /></fieldset>
+                    <fieldset className="p-4 border rounded-lg space-y-4"><legend className="font-semibold px-2">勤労学生控除</legend><SelectField label="該当の判定" name="workingStudentStatus" value={values.workingStudentStatus} onChange={handleChange} options={[{value: 'none', label: '該当なし'}, {value: 'yes', label: '該当あり'}]} /><ReadOnlyField label="勤労学生控除の額" value={deductions.workingStudentDeduction} /></fieldset>
+                    <fieldset className="p-4 border rounded-lg space-y-4"><legend className="font-semibold px-2">障害者控除</legend><SelectField label="一般障害者の人数" name="generalDisabilityCount" value={values.generalDisabilityCount} onChange={handleChange} options={[{value: 0, label: '0人'}, {value: 1, label: '1人'}, {value: 2, label: '2人'}, {value: 3, label: '3人'}]} /><SelectField label="特別障害者の人数" name="specialDisabilityCount" value={values.specialDisabilityCount} onChange={handleChange} options={[{value: 0, label: '0人'}, {value: 1, label: '1人'}, {value: 2, label: '2人'}, {value: 3, label: '3人'}]} /><SelectField label="同居特別障害者の人数" name="severeDisabilityCount" value={values.severeDisabilityCount} onChange={handleChange} options={[{value: 0, label: '0人'}, {value: 1, label: '1人'}, {value: 2, label: '2人'}, {value: 3, label: '3人'}]} /><ReadOnlyField label="障害者控除の額" value={deductions.disabilityDeduction} /></fieldset>
+                    <fieldset className="p-4 border rounded-lg space-y-4"><legend className="font-semibold px-2">配偶者控除・配偶者特別控除</legend>
+                        <SelectField label="配偶者の有無" name="spouseStatus" value={values.spouseStatus} onChange={handleChange} options={[{value: 'none', label: 'なし'}, {value: 'yes', label: 'あり'}]} />
+                        <SelectField label="配偶者の年齢" name="spouseAge" value={values.spouseAge} onChange={handleChange} disabled={values.spouseStatus === 'none'} options={[{value: 'under70', label: '70歳未満'}, {value: 'over70', label: '70歳以上'}]} />
+                        <InputField label="配偶者の合計所得金額" name="spouseIncome" value={values.spouseIncome} onChange={handleChange} disabled={values.spouseStatus === 'none'} />
+                        <ReadOnlyField label="配偶者控除の額" value={deductions.spouseDeduction} />
+                        <ReadOnlyField label="配偶者特別控除の額" value={deductions.specialSpouseDeduction} />
+                    </fieldset>
+                    <fieldset className="p-4 border rounded-lg space-y-4"><legend className="font-semibold px-2">扶養控除</legend>
+                        <SelectField label="一般扶養親族の人数" name="dependents16to18" value={values.dependents16to18} onChange={handleChange} subtext="16歳以上19歳未満" options={dependentOptions} />
+                        <SelectField label="特定扶養親族の人数" name="dependents19to22" value={values.dependents19to22} onChange={handleChange} subtext="19歳以上23歳未満" options={dependentOptions} />
+                        <SelectField label="老人扶養親族の人数" name="dependents70plus" value={values.dependents70plus} onChange={handleChange} subtext="70歳以上（同居老親等以外）" options={dependentOptions} />
+                        <SelectField label="同居老親等の人数" name="dependents70plusLivingTogether" value={values.dependents70plusLivingTogether} onChange={handleChange} subtext="70歳以上（同居老親等）" options={dependentOptions} />
+                        <ReadOnlyField label="扶養控除の額" value={deductions.dependentsDeduction} />
+                    </fieldset>
+                </div>
+                <div className="mt-8 flex justify-between">
+                    <button onClick={() => onNavigate('deductions1')} className="px-6 py-2 bg-gray-600 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75">← 前のページに戻る</button>
+                    <button onClick={() => onNavigate('taxCalculation')} className="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-opacity-75">税額計算の内訳へ →</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const TaxCalculationPage = ({ incomes, tax, onNavigate }) => (
     <div className="md:col-span-2 space-y-6">
         <div className="p-6 bg-white rounded-lg shadow">
-            <h2 className="text-xl font-bold mb-6 border-b pb-3">所得控除の入力 (2/2)</h2>
-            <div className="space-y-6">
-                <fieldset className="p-4 border rounded-lg space-y-4"><legend className="font-semibold px-2">寄付金控除</legend><InputField label="特定寄付金の支払額" name="donationAmount" value={values.donationAmount} onChange={handleChange} /><ReadOnlyField label="寄付金控除の額" value={deductions.donationDeduction} /></fieldset>
-                <fieldset className="p-4 border rounded-lg space-y-4"><legend className="font-semibold px-2">寡婦・ひとり親控除</legend><SelectField label="該当の判定" name="widowStatus" value={values.widowStatus} onChange={handleChange} options={[{value: 'none', label: '該当なし'}, {value: 'widow', label: '寡婦'}, {value: 'single_parent', label: 'ひとり親'}]} /><ReadOnlyField label="寡婦・ひとり親控除の額" value={deductions.widowDeduction} /></fieldset>
-                <fieldset className="p-4 border rounded-lg space-y-4"><legend className="font-semibold px-2">勤労学生控除</legend><SelectField label="該当の判定" name="workingStudentStatus" value={values.workingStudentStatus} onChange={handleChange} options={[{value: 'none', label: '該当なし'}, {value: 'yes', label: '該当あり'}]} /><ReadOnlyField label="勤労学生控除の額" value={deductions.workingStudentDeduction} /></fieldset>
-                <fieldset className="p-4 border rounded-lg space-y-4"><legend className="font-semibold px-2">障害者控除</legend><SelectField label="一般障害者の人数" name="generalDisabilityCount" value={values.generalDisabilityCount} onChange={handleChange} options={[{value: 0, label: '0人'}, {value: 1, label: '1人'}, {value: 2, label: '2人'}]} /><SelectField label="特別障害者の人数" name="specialDisabilityCount" value={values.specialDisabilityCount} onChange={handleChange} options={[{value: 0, label: '0人'}, {value: 1, label: '1人'}, {value: 2, label: '2人'}]} /><SelectField label="同居特別障害者の人数" name="severeDisabilityCount" value={values.severeDisabilityCount} onChange={handleChange} options={[{value: 0, label: '0人'}, {value: 1, label: '1人'}, {value: 2, label: '2人'}]} /><ReadOnlyField label="障害者控除の額" value={deductions.disabilityDeduction} /></fieldset>
-                <fieldset className="p-4 border rounded-lg space-y-4"><legend className="font-semibold px-2">配偶者控除・配偶者特別控除</legend><SelectField label="配偶者の有無" name="spouseStatus" value={values.spouseStatus} onChange={handleChange} options={[{value: 'none', label: 'なし'}, {value: 'yes', label: 'あり'}]} /><InputField label="配偶者の合計所得金額" name="spouseIncome" value={values.spouseIncome} onChange={handleChange} disabled={values.spouseStatus === 'none'} /><ReadOnlyField label="配偶者控除の額" value={deductions.spouseDeduction} /><ReadOnlyField label="配偶者特別控除の額" value={deductions.specialSpouseDeduction} /></fieldset>
-                <fieldset className="p-4 border rounded-lg space-y-4"><legend className="font-semibold px-2">扶養控除</legend><SelectField label="一般扶養親族の人数" name="dependents16to18" value={values.dependents16to18} onChange={handleChange} subtext="16歳以上19歳未満" options={[{value: 0, label: '0人'}, {value: 1, label: '1人'}, {value: 2, label: '2人'}, {value: 3, label: '3人'}]} /><SelectField label="特定扶養親族の人数" name="dependents19to22" value={values.dependents19to22} onChange={handleChange} subtext="19歳以上23歳未満" options={[{value: 0, label: '0人'}, {value: 1, label: '1人'}, {value: 2, label: '2人'}, {value: 3, label: '3人'}]} /><SelectField label="老人扶養親族の人数" name="dependents70plus" value={values.dependents70plus} onChange={handleChange} subtext="70歳以上（同居老親等以外）" options={[{value: 0, label: '0人'}, {value: 1, label: '1人'}, {value: 2, label: '2人'}, {value: 3, label: '3人'}]} /><SelectField label="同居老親等の人数" name="dependents70plusLivingTogether" value={values.dependents70plusLivingTogether} onChange={handleChange} subtext="70歳以上（同居老親等）" options={[{value: 0, label: '0人'}, {value: 1, label: '1人'}, {value: 2, label: '2人'}, {value: 3, label: '3人'}]} /><ReadOnlyField label="扶養控除の額" value={deductions.dependentsDeduction} /></fieldset>
+            <h2 className="text-xl font-bold mb-6 border-b pb-3">税額の計算</h2>
+            <div className="space-y-8">
+                <div>
+                    <h3 className="text-lg font-semibold mb-4 text-gray-800">1. 課税所得金額の計算</h3>
+                    <div className="space-y-3 p-4 bg-gray-50 rounded-lg border">
+                        <p className="flex justify-between items-center"><span>合計所得金額</span> <span>{formatNumber(incomes.totalIncome)} 円</span></p>
+                        <p className="flex justify-between items-center"><span>(-) 所得控除合計</span> <span>{formatNumber(tax.totalDeductions)} 円</span></p>
+                        <hr className="my-2 border-t-2 border-gray-200" />
+                        <p className="flex justify-between items-center font-bold text-lg"><span>課税所得金額</span> <span>{formatNumber(tax.taxableIncome)} 円</span></p>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 className="text-lg font-semibold mb-4 text-gray-800">2. 所得税額の計算</h3>
+                     <div className="space-y-3 p-4 bg-gray-50 rounded-lg border">
+                        <p className="flex justify-between items-center"><span>課税所得金額 × 税率 - 控除額</span> <span>{formatNumber(tax.incomeTaxBase)} 円</span></p>
+                        <p className="flex justify-between items-center"><span>(+) 復興特別所得税 (2.1%)</span> <span>{formatNumber(tax.specialReconstructionTax)} 円</span></p>
+                        <hr className="my-2 border-t-2 border-gray-200" />
+                        <p className="flex justify-between items-center font-bold text-lg text-red-600"><span>所得税額</span> <span>{formatNumber(tax.incomeTax)} 円</span></p>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 className="text-lg font-semibold mb-4 text-gray-800">3. 住民税額の計算</h3>
+                    <div className="space-y-3 p-4 bg-gray-50 rounded-lg border">
+                         <p className="flex justify-between items-center"><span>課税所得金額(住民税)</span> <span>{formatNumber(tax.taxableIncomeForRT)} 円</span></p>
+                         <p className="flex justify-between items-center"><span>所得割 (10%)</span> <span>{formatNumber(tax.residentTaxIncomeProportional)} 円</span></p>
+                         <p className="flex justify-between items-center"><span>(+) 均等割</span> <span>{formatNumber(tax.residentTaxPerCapita)} 円</span></p>
+                         <hr className="my-2 border-t-2 border-gray-200" />
+                         <p className="flex justify-between items-center font-bold text-lg text-green-600"><span>住民税額</span> <span>{formatNumber(tax.residentTax)} 円</span></p>
+                    </div>
+                </div>
             </div>
-            <div className="mt-8 flex justify-between"><button onClick={() => onNavigate('deductions1')} className="px-6 py-2 bg-gray-600 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75">← 前のページに戻る</button></div>
+            <div className="mt-8 flex justify-between">
+                <button onClick={() => onNavigate('deductions2')} className="px-6 py-2 bg-gray-600 text-white font-semibold rounded-lg shadow-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75">← 所得控除の入力に戻る</button>
+            </div>
         </div>
     </div>
 );
@@ -257,7 +461,7 @@ function App() {
   const [currentPage, setCurrentPage] = useState('income');
 
   const [values, setValues] = useState({
-    salaryRevenue: 5000000, realEstateRevenue: 0, realEstateExpenses: 0,
+    salaryRevenue: 0, realEstateRevenue: 0, realEstateExpenses: 0,
     businessRevenue: 0, businessExpenses: 0, temporaryRevenue: 0, temporaryExpenses: 0,
     ageCategory: 'none', pensionRevenue: 0, otherMiscRevenue: 0, otherMiscExpenses: 0,
     blueDeduction: '0',
@@ -270,7 +474,7 @@ function App() {
     widowStatus: 'none',
     workingStudentStatus: 'none',
     generalDisabilityCount: 0, specialDisabilityCount: 0, severeDisabilityCount: 0,
-    spouseStatus: 'none', spouseIncome: 0,
+    spouseStatus: 'none', spouseAge: 'under70', spouseIncome: 0,
     dependents16to18: 0, dependents19to22: 0, dependents70plus: 0, dependents70plusLivingTogether: 0,
   });
 
@@ -286,12 +490,21 @@ function App() {
       miscLossNet: 0, miscLossDeduction: 0, medicalExpenseDeduction: 0,
       lifeInsuranceDeduction: 0, lifeInsuranceDeductionForResidentTax: 0,
       earthquakeInsuranceDeduction: 0, earthquakeInsuranceDeductionForResidentTax: 0,
-      donationDeduction: 0, widowDeduction: 0, workingStudentDeduction: 0,
-      disabilityDeduction: 0, spouseDeduction: 0, specialSpouseDeduction: 0,
-      dependentsDeduction: 0,
+      donationDeduction: 0,
+      widowDeduction: 0, widowDeductionForResidentTax: 0,
+      workingStudentDeduction: 0, workingStudentDeductionForResidentTax: 0,
+      disabilityDeduction: 0, disabilityDeductionForResidentTax: 0,
+      spouseDeduction: 0, specialSpouseDeduction: 0,
+      spouseDeductionForResidentTax: 0, specialSpouseDeductionForResidentTax: 0,
+      dependentsDeduction: 0, dependentsDeductionForResidentTax: 0,
   });
 
-  const [tax, setTax] = useState({ incomeTax: 0, residentTax: 0, taxableIncome: 0, totalDeductions: 0 });
+  const [tax, setTax] = useState({
+      incomeTax: 0, incomeTaxBase: 0, specialReconstructionTax: 0,
+      residentTax: 0, residentTaxIncomeProportional: 0, residentTaxPerCapita: 0,
+      businessTax: 0,
+      taxableIncome: 0, taxableIncomeForRT: 0, totalDeductions: 0,
+  });
 
   const handleNavigate = (page) => {
       setCurrentPage(page);
@@ -305,6 +518,7 @@ function App() {
   };
 
   useEffect(() => {
+    // --- 所得計算 ---
     const salaryRevenue = Number(values.salaryRevenue) || 0;
     const salaryIncome = calculateSalaryIncome(salaryRevenue);
     const salaryDeduction = salaryRevenue > 0 ? Math.max(0, salaryRevenue - salaryIncome) : 0;
@@ -315,7 +529,7 @@ function App() {
     const tempIncomeRaw = tempRevenue - tempExpenses;
     const temporarySpecialDeduction = Math.min(Math.max(0, tempIncomeRaw), 500000);
     const temporaryBeforeHalf = Math.max(0, tempIncomeRaw - temporarySpecialDeduction);
-    const temporaryIncome = temporaryBeforeHalf / 2;
+    const temporaryIncome = Math.round(temporaryBeforeHalf / 2);
     const otherMiscIncome = Math.max(0, (Number(values.otherMiscRevenue) || 0) - (Number(values.otherMiscExpenses) || 0));
     const otherIncomeForPensionCalc = salaryIncome + reIncome + businessIncome + temporaryIncome + otherMiscIncome;
     const age = values.ageCategory === 'under65' ? 64 : (values.ageCategory === 'over65' ? 65 : 0);
@@ -332,11 +546,19 @@ function App() {
       publicPension: publicPensionIncome, otherMisc: otherMiscIncome, miscellaneous: miscellaneousIncome,
       grossIncome, totalIncome, applicableBlueDeduction,
     });
+
+    // --- 控除計算 ---
     const miscLossResult = calculateMiscLossDeduction(values, totalIncome);
     const medicalDeductionResult = calculateMedicalExpenseDeduction(values);
     const lifeInsuranceResult = calculateLifeInsuranceDeduction(values);
     const earthquakeInsuranceResult = calculateEarthquakeInsuranceDeduction(values);
-    const spouseAndDependentsResult = calculateSpouseAndDependentsDeduction(values);
+    const spouseResult = calculateSpouseDeductions(totalIncome, values.spouseIncome, values.spouseStatus, values.spouseAge);
+    const donationResult = calculateDonationDeduction(values.donationAmount, grossIncome);
+    const widowResult = calculateWidowDeduction(values.widowStatus);
+    const workingStudentResult = calculateWorkingStudentDeduction(values.workingStudentStatus);
+    const disabilityResult = calculateDisabilityDeduction(values);
+    const dependentsResult = calculateDependentsDeduction(values);
+
     setDeductions({
         miscLossNet: miscLossResult.netLoss,
         miscLossDeduction: miscLossResult.deduction,
@@ -345,18 +567,24 @@ function App() {
         lifeInsuranceDeductionForResidentTax: lifeInsuranceResult.residentTaxDeduction,
         earthquakeInsuranceDeduction: earthquakeInsuranceResult.incomeTaxDeduction,
         earthquakeInsuranceDeductionForResidentTax: earthquakeInsuranceResult.residentTaxDeduction,
-        donationDeduction: 0,
-        widowDeduction: 0,
-        workingStudentDeduction: 0,
-        disabilityDeduction: 0,
-        spouseDeduction: spouseAndDependentsResult.spouseDeduction,
-        specialSpouseDeduction: spouseAndDependentsResult.specialSpouseDeduction,
-        dependentsDeduction: spouseAndDependentsResult.dependentsDeduction,
+        donationDeduction: donationResult,
+        widowDeduction: widowResult.incomeTaxDeduction,
+        widowDeductionForResidentTax: widowResult.residentTaxDeduction,
+        workingStudentDeduction: workingStudentResult.incomeTaxDeduction,
+        workingStudentDeductionForResidentTax: workingStudentResult.residentTaxDeduction,
+        disabilityDeduction: disabilityResult.incomeTaxDeduction,
+        disabilityDeductionForResidentTax: disabilityResult.residentTaxDeduction,
+        spouseDeduction: spouseResult.spouseDeduction,
+        specialSpouseDeduction: spouseResult.specialSpouseDeduction,
+        spouseDeductionForResidentTax: spouseResult.spouseDeductionForResidentTax,
+        specialSpouseDeductionForResidentTax: spouseResult.specialSpouseDeductionForResidentTax,
+        dependentsDeduction: dependentsResult.incomeTaxDeduction,
+        dependentsDeductionForResidentTax: dependentsResult.residentTaxDeduction,
     });
   }, [values]);
 
   useEffect(() => {
-    const taxResult = calculateTax(values, incomes.totalIncome, deductions);
+    const taxResult = calculateTax(values, incomes.totalIncome, deductions, incomes);
     setTax(taxResult);
   }, [values, incomes, deductions]);
 
@@ -386,6 +614,7 @@ function App() {
               <h3 className="font-semibold text-lg border-b pb-1">税額</h3>
               <p className="flex justify-between text-red-600 font-bold text-xl">所得税: <span>{formatNumber(tax.incomeTax)}円</span></p>
               <p className="flex justify-between text-green-600 font-bold text-xl">住民税: <span>{formatNumber(tax.residentTax)}円</span></p>
+              <p className="flex justify-between text-purple-600 font-bold text-xl">事業税: <span>{formatNumber(tax.businessTax)}円</span></p>
             </div>
         </div>
     </div>
@@ -399,6 +628,8 @@ function App() {
             return <DeductionsPage1 values={values} handleChange={handleChange} onNavigate={handleNavigate} deductions={deductions} />;
         case 'deductions2':
             return <DeductionsPage2 values={values} handleChange={handleChange} onNavigate={handleNavigate} deductions={deductions} />;
+        case 'taxCalculation':
+            return <TaxCalculationPage incomes={incomes} tax={tax} onNavigate={handleNavigate} />;
         default:
             return <IncomePage values={values} incomes={incomes} handleChange={handleChange} onNavigate={handleNavigate} />;
     }
@@ -416,4 +647,3 @@ function App() {
 }
 
 export default App;
-
