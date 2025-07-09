@@ -6,8 +6,8 @@ export default defineConfig({
   css: {
     postcss: './postcss.config.js'
   },
-  // optimizeDepsを削除し、↓ のssr設定を追加
-  ssr: {
-    noExternal: ['@vercel/analytics/react'],
+  // ↓ この optimizeDeps の3行を追加します
+  optimizeDeps: {
+    include: ['@vercel/analytics/react'],
   },
 })
