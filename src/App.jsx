@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { Analytics } from '@vercel/analytics/react'; // ← この行を追加
 
 // --- 計算ロジック関数群 (変更なし) ---
 // Calculation logic functions (Unchanged)
@@ -695,27 +694,24 @@ function App() {
   }
 
   return (
-    <>
-      <div className="min-h-screen bg-[#f5f5f7] font-sans text-[#1d1d1f]" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"' }}>
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <header className="text-center mb-12">
-            <h1 className="text-4xl font-bold tracking-tight text-[#1d1d1f]">
-              個人事業主の税額シミュレーション
-            </h1>
-            <p className="mt-2 text-lg text-[#6e6e73]">
-              個人事業主の所得税・住民税・事業税を自動計算します。
-            </p>
-          </header>
-          <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2">
-              {renderPage()}
-            </div>
-            <CalculationResult />
-          </main>
-        </div>
+    <div className="min-h-screen bg-[#f5f5f7] font-sans text-[#1d1d1f]" style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"' }}>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <header className="text-center mb-12">
+          <h1 className="text-4xl font-bold tracking-tight text-[#1d1d1f]">
+            個人事業主の税額シミュレーション
+          </h1>
+          <p className="mt-2 text-lg text-[#6e6e73]">
+            個人事業主の所得税・住民税・事業税を自動計算します。
+          </p>
+        </header>
+        <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            {renderPage()}
+          </div>
+          <CalculationResult />
+        </main>
       </div>
-      <Analytics />
-    </>
+    </div>
   );
 }
 
